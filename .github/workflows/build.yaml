@@ -3,74 +3,78 @@ name: Build and Release
 on:
   push:
     branches:
-      - main # 触发条件，当代码合并到 main 分支时
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [darwin, windows]
+        arch: [amd64, arm64, 386]
+        exclude:
+          - os: darwin
+            arch: 386  # macOS 不支持 32 位
+          - os: windows
+            arch: arm64  # Windows 不支持 arm64
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        run: |
+          wget https://golang.org/dl/go1.21.0.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+          export PATH=$PATH:/usr/local/go/bin
 
       - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.21.0' # 使用 Go 1.21.0
+        run: |
+          go version
 
-      - name: Build for Windows x64
-        run: GOOS=windows GOARCH=amd64 go build -o go_showstart_windows_amd64.exe
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p dist
+          /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
-      - name: Build for Windows x32
-        run: GOOS=windows GOARCH=386 go build -o go_showstart_windows_386.exe
+      - name: Verify build output
+        run: ls -la dist/
 
-      - name: Build for macOS Intel
-        run: GOOS=darwin GOARCH=amd64 go build -o go_showstart_darwin_amd64
+      - name: Generate tag
+        id: vars
+        run: echo "TAG=$(date +'%Y%m%d%H%M%S')-${{ github.sha }}" >> $GITHUB_ENV
 
-      - name: Build for macOS ARM
-        run: GOOS=darwin GOARCH=arm64 go build -o go_showstart_darwin_arm64
-
-      - name: Create release tag
-        id: create_release
-        run: echo "RELEASE_TAG=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+      - name: Trim SHA
+        id: trim_sha
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          release_name: Release ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.TAG }}-${{ env.SHORT_SHA }}
+          release_name: "Release ${{ env.TAG }}-${{ env.SHORT_SHA }}"
+          body: |
+            This is an automated release built from commit ${{ github.sha }}.
+            - OS: ${{ matrix.os }}
+            - Architecture: ${{ matrix.arch }}
+          draft: false
+          prerelease: false
 
-      - name: Upload Windows x64 asset
+      - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: go_showstart_windows_amd64.exe
-          asset_name: go_showstart_windows_amd64.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows x32 asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: go_showstart_windows_386.exe
-          asset_name: go_showstart_windows_386.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS Intel asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: go_showstart_darwin_amd64
-          asset_name: go_showstart_darwin_amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS ARM asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: go_showstart_darwin_arm64
-          asset_name: go_showstart_darwin_arm64
+          asset_path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          asset_name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
           asset_content_type: application/octet-stream
