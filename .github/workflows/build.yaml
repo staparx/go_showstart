@@ -11,45 +11,42 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - os: darwin
-            arch: amd64
-          - os: darwin
-            arch: arm64
-          - os: windows
-            arch: amd64
-          - os: windows
-            arch: 386
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Install Go
-        run: |
-          wget https://golang.org/dl/go1.21.0.${{ matrix.os == 'windows' && 'windows-amd64' || 'linux-amd64' }}.tar.gz
-          sudo tar -C /usr/local -xzf go1.21.0.${{ matrix.os == 'windows' && 'windows-amd64' || 'linux-amd64' }}.tar.gz
-          export PATH=$PATH:/usr/local/go/bin
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.0
 
       - name: Set up Go
         run: |
           go version
 
-      - name: Build
-        env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
+      - name: Build for macOS AMD64
         run: |
           mkdir -p dist
-          /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          GOOS=darwin GOARCH=amd64 go build -o dist/go_showstart_darwin_amd64
 
-      - name: Upload artifact
+      - name: Build for macOS ARM64
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o dist/go_showstart_darwin_arm64
+
+      - name: Build for Windows AMD64
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o dist/go_showstart_windows_amd64.exe
+
+      - name: Build for Windows 386
+        run: |
+          GOOS=windows GOARCH=386 go build -o dist/go_showstart_windows_386.exe
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}
-          path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          name: go_showstart_artifacts
+          path: dist/*
 
   release:
     needs: build
@@ -77,28 +74,10 @@ jobs:
           body: |
             This is an automated release built from commit ${{ github.sha }}.
 
-      - name: Download artifact
+      - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          name: go_showstart_darwin_amd64
-          path: ./dist
-
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_darwin_arm64
-          path: ./dist
-
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_windows_amd64
-          path: ./dist
-
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_windows_386
+          name: go_showstart_artifacts
           path: ./dist
 
       - name: Upload Release Assets (Darwin AMD64)
