@@ -1,0 +1,25 @@
+system:
+  max_goroutine: 3
+  min_interval: 200
+  max_interval: 500
+
+showstart:
+  sign: ""
+  token: ""
+  cookie: ""
+  st_flpv: ""
+  cusid: ""
+  cusname: "nil"
+  cversion: "997"
+  cterminal: "wap"
+  cdeviceinfo: ""
+
+ticket:
+  activity_id: 123456
+  start_time: "2024-07-25 12:00:00"
+  list:
+    - session: "2024-08-16 周五 20:00"
+      price: "388"
+  people:
+    - "观演人1"
+    - "观演人2"
