@@ -13,13 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [darwin, windows]
-        arch: [amd64, arm64, 386]
-        exclude:
+        include:
           - os: darwin
-            arch: 386  # macOS 不支持 32 位
+            arch: amd64
+          - os: darwin
+            arch: arm64
           - os: windows
-            arch: arm64  # Windows 不支持 arm64
+            arch: amd64
+          - os: windows
+            arch: 386
 
     steps:
       - name: Checkout code
@@ -27,8 +29,8 @@ jobs:
 
       - name: Install Go
         run: |
-          wget https://golang.org/dl/go1.21.0.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+          wget https://golang.org/dl/go1.21.0.${{ matrix.os == 'windows' && 'windows-amd64' || 'linux-amd64' }}.tar.gz
+          sudo tar -C /usr/local -xzf go1.21.0.${{ matrix.os == 'windows' && 'windows-amd64' || 'linux-amd64' }}.tar.gz
           export PATH=$PATH:/usr/local/go/bin
 
       - name: Set up Go
@@ -43,8 +45,18 @@ jobs:
           mkdir -p dist
           /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
-      - name: Verify build output
-        run: ls -la dist/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}
+          path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Generate tag
         id: vars
@@ -64,17 +76,67 @@ jobs:
           release_name: "Release ${{ env.TAG }}-${{ env.SHORT_SHA }}"
           body: |
             This is an automated release built from commit ${{ github.sha }}.
-            - OS: ${{ matrix.os }}
-            - Architecture: ${{ matrix.arch }}
-          draft: false
-          prerelease: false
 
-      - name: Upload Release Assets
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_darwin_amd64
+          path: ./dist
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_darwin_arm64
+          path: ./dist
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_windows_amd64
+          path: ./dist
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_windows_386
+          path: ./dist
+
+      - name: Upload Release Assets (Darwin AMD64)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
-          asset_name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          asset_path: ./dist/go_showstart_darwin_amd64
+          asset_name: go_showstart_darwin_amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (Darwin ARM64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_darwin_arm64
+          asset_name: go_showstart_darwin_arm64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (Windows AMD64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_windows_amd64.exe
+          asset_name: go_showstart_windows_amd64.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (Windows 386)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_windows_386.exe
+          asset_name: go_showstart_windows_386.exe
           asset_content_type: application/octet-stream
