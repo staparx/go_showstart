@@ -1,6 +1,6 @@
 module github.com/staparx/go_showstart
 
-go 1.21.0
+go 1.18
 
 require (
 	github.com/json-iterator/go v1.1.12
