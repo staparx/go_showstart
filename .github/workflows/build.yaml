@@ -13,13 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [darwin, windows]
-        arch: [amd64, arm64, 386]
-        exclude:
+        include:
           - os: darwin
-            arch: 386  # macOS 不支持 32 位
+            arch: amd64
+          - os: darwin
+            arch: arm64
           - os: windows
-            arch: arm64  # Windows 不支持 arm64
+            arch: amd64
+          - os: windows
+            arch: 386
 
     steps:
       - name: Checkout code
@@ -43,16 +45,22 @@ jobs:
           mkdir -p dist
           /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
-      - name: Verify build output
-        run: ls -la dist/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}
+          path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Generate tag
         id: vars
-        run: echo "TAG=$(date +'%Y%m%d%H%M%S')-${{ github.sha }}" >> $GITHUB_ENV
-
-      - name: Trim SHA
-        id: trim_sha
-        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+        run: echo "TAG=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
       - name: Create Release
         id: create_release
@@ -60,14 +68,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
-          tag_name: ${{ env.TAG }}-${{ env.SHORT_SHA }}
-          release_name: "Release ${{ env.TAG }}-${{ env.SHORT_SHA }}"
+          tag_name: ${{ env.TAG }}
+          release_name: "Release ${{ env.TAG }}"
           body: |
             This is an automated release built from commit ${{ github.sha }}.
-            - OS: ${{ matrix.os }}
-            - Architecture: ${{ matrix.arch }}
-          draft: false
-          prerelease: false
+
+      - name: Download artifact (darwin amd64)
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_darwin_amd64
+          path: ./dist
+      - name: Download artifact (darwin arm64)
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_darwin_arm64
+          path: ./dist
+      - name: Download artifact (windows amd64)
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_windows_amd64
+          path: ./dist
+      - name: Download artifact (windows 386)
+        uses: actions/download-artifact@v2
+        with:
+          name: go_showstart_windows_386
+          path: ./dist
 
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
@@ -75,6 +100,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
-          asset_name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          asset_path: ./dist/*
+          asset_name: $(basename ${{ matrix.os }}_${{ matrix.arch }})
           asset_content_type: application/octet-stream
