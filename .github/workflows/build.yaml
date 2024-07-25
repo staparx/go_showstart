@@ -76,30 +76,6 @@ jobs:
           body: |
             This is an automated release built from commit ${{ github.sha }}.
 
-      - name: Download artifact (darwin amd64)
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_darwin_amd64
-          path: ./dist
-      - name: Download artifact (darwin arm64)
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_darwin_arm64
-          path: ./dist
-      - name: Download artifact (windows amd64)
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_windows_amd64
-          path: ./dist
-      - name: Download artifact (windows 386)
-        uses: actions/download-artifact@v2
-        with:
-          name: go_showstart_windows_386
-          path: ./dist
-
-      - name: List dist directory after download
-        run: ls -la dist/
-
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
@@ -109,6 +85,7 @@ jobs:
           asset_path: ./dist/go_showstart_darwin_amd64
           asset_name: go_showstart_darwin_amd64
           asset_content_type: application/octet-stream
+
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
@@ -118,6 +95,7 @@ jobs:
           asset_path: ./dist/go_showstart_darwin_arm64
           asset_name: go_showstart_darwin_arm64
           asset_content_type: application/octet-stream
+
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
@@ -127,6 +105,7 @@ jobs:
           asset_path: ./dist/go_showstart_windows_amd64
           asset_name: go_showstart_windows_amd64
           asset_content_type: application/octet-stream
+
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
