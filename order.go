@@ -101,8 +101,9 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 		}
 	} else {
 		log.Logger.Info(fmt.Sprintf("🏃票务类型为:%d ，无需选择观演人 ", confirm.Result.OrderInfoVo.BuyType))
-
 	}
+
+	log.Logger.Info(fmt.Sprintf("👪观演人数：%d（请注意活动的购票数量限制！）", num))
 
 	t, err := time.ParseInLocation("2006-01-02 15:04:05", cfg.Ticket.StartTime, vars.TimeLocal)
 	if err != nil {
@@ -114,7 +115,7 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 	now := time.Now().Unix()
 
 	// 计算等待时间
-	waitTime := startTime - now - 2
+	waitTime := startTime - now - 3
 
 	// 等待开票
 	if waitTime > 0 {
@@ -130,7 +131,7 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 		<-timer.C
 	}
 
-	log.Logger.Info("👂活动即将开始，开始监听抢票！！！")
+	log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
 	for i := 0; i < cfg.System.MaxGoroutine; i++ {
 		go GoOrder(ctx, i, c, orderReq, cfg)
 	}
