@@ -1,4 +1,4 @@
-name: Build
+name: Build and Release
 
 on:
   push:
@@ -25,10 +25,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Install Go
+        run: |
+          wget https://golang.org/dl/go1.21.0.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+          export PATH=$PATH:/usr/local/go/bin
+
       - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.21.0'
+        run: |
+          go version
 
       - name: Build
         env:
@@ -36,10 +41,29 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: |
           mkdir -p dist
-          go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
-      - name: Upload binaries
-        uses: actions/upload-artifact@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: binaries
-          path: dist/*
+          tag_name: ${{ github.sha }}
+          release_name: "Release ${{ github.sha }}"
+          body: |
+            This is an automated release built from commit ${{ github.sha }}.
+            - OS: ${{ matrix.os }}
+            - Architecture: ${{ matrix.arch }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/*
+          asset_name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          asset_content_type: application/octet-stream
