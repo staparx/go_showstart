@@ -9,11 +9,11 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 
 ## 使用说明
 1. 在 [Releases](https://github.com/staparx/go_showstart/releases)中，下载对应系统的可执行文件。
-2. 保证程序和config.yaml在同一目录下，直接运行可执行文件即可。
-3. 使用前，请登陆App 提前填写好观演人的实名信息，遇到需要实名的情况，程序会根据名字自动填写。
+2. 参考`config.example.yaml`文件，配置文件需要放在和可执行文件同级目录下，配置文件名为`config.yaml`。
+3. 保证可执行文件和config.yaml在同一级目录下，然后执行可执行文件即可。
+4. 使用前，请登陆App 提前填写好观演人的实名信息，遇到需要实名的情况，程序会根据名字自动填写。
 
 ## 配置说明
-参考`config.example.yaml`文件，配置文件需要放在和可执行文件同级目录下，配置文件名为`config.yaml`
 
 ### system
 - max_goroutine: 最大并发数
@@ -23,9 +23,9 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 ### showstart
 1. [登陆秀动网页版](https://wap.showstart.com)
 2. F12打开浏览器开发者工具，刷新页面找到请求信息。如图：
-![img.png](img.png)
+![img.png](./docs/img.png)
 3. 切换到缓存选项卡，找到其他对应字段信息，填写到配置中，如图：
-![img_1.png](img_1.png)
+![img_1.png](docs/img_1.png)
 
 
 ### ticket
