@@ -45,6 +45,9 @@ jobs:
           mkdir -p dist
           /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
+      - name: List dist directory
+        run: ls -la dist/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -100,6 +103,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/*
-          asset_name: $(basename ${{ matrix.os }}_${{ matrix.arch }})
+          asset_path: ./dist/go_showstart_darwin_amd64
+          asset_name: go_showstart_darwin_amd64
+          asset_content_type: application/octet-stream
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_darwin_arm64
+          asset_name: go_showstart_darwin_arm64
+          asset_content_type: application/octet-stream
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_windows_amd64
+          asset_name: go_showstart_windows_amd64
+          asset_content_type: application/octet-stream
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/go_showstart_windows_386
+          asset_name: go_showstart_windows_386
           asset_content_type: application/octet-stream
