@@ -9,20 +9,8 @@ on:
       - main
 
 jobs:
-  build:
+  build_and_release:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - os: darwin
-            arch: amd64
-          - os: darwin
-            arch: arm64
-          - os: windows
-            arch: amd64
-          - os: windows
-            arch: 386
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -38,12 +26,17 @@ jobs:
           go version
 
       - name: Build
-        env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
         run: |
           mkdir -p dist
-          /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          for os in darwin windows; do
+            for arch in amd64 arm64 386; do
+              if [ "$os" = "windows" ] && [ "$arch" = "arm64" ]; then continue; fi
+              if [ "$os" = "darwin" ] && [ "$arch" = "386" ]; then continue; fi
+              export GOOS=$os
+              export GOARCH=$arch
+              /usr/local/go/bin/go build -o dist/go_showstart_${os}_${arch}${[ "$os" = "windows" ] && echo '.exe' || ''}
+            done
+          done
 
       - name: List dist directory
         run: ls -la dist/
@@ -51,15 +44,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: go_showstart_${{ matrix.os }}_${{ matrix.arch }}
-          path: dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+          name: go_showstart
+          path: dist/
 
       - name: Generate tag
         id: vars
@@ -82,7 +68,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/go_showstart_darwin_amd64
+          asset_path: dist/go_showstart_darwin_amd64
           asset_name: go_showstart_darwin_amd64
           asset_content_type: application/octet-stream
 
@@ -92,7 +78,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/go_showstart_darwin_arm64
+          asset_path: dist/go_showstart_darwin_arm64
           asset_name: go_showstart_darwin_arm64
           asset_content_type: application/octet-stream
 
@@ -102,7 +88,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/go_showstart_windows_amd64
+          asset_path: dist/go_showstart_windows_amd64
           asset_name: go_showstart_windows_amd64
           asset_content_type: application/octet-stream
 
@@ -112,6 +98,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/go_showstart_windows_386
+          asset_path: dist/go_showstart_windows_386
           asset_name: go_showstart_windows_386
           asset_content_type: application/octet-stream
