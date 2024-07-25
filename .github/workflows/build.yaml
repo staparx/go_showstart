@@ -45,7 +45,7 @@ jobs:
 
       - name: Generate tag
         id: vars
-        run: echo "TAG=$(date +'%Y%m%d%H%M%S')-${{ github.sha }}" >> $GITHUB_ENV
+        run: echo "TAG=$(date +'%Y%m%d%H%M%S')-${{ github.sha::7 }}" >> $GITHUB_ENV
 
       - name: Create Release
         id: create_release
