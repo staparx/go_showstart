@@ -43,14 +43,18 @@ jobs:
           mkdir -p dist
           /usr/local/go/bin/go build -o dist/go_showstart_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
+      - name: Generate tag
+        id: vars
+        run: echo "TAG=$(date +'%Y%m%d%H%M%S')-${{ github.sha }}" >> $GITHUB_ENV
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.sha }}
-          release_name: "Release ${{ github.sha }}"
+          tag_name: ${{ env.TAG }}
+          release_name: "Release ${{ env.TAG }}"
           body: |
             This is an automated release built from commit ${{ github.sha }}.
             - OS: ${{ matrix.os }}
@@ -61,7 +65,7 @@ jobs:
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/*
