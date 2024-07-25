@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*' # 触发条件，当推送新的标签时
+    branches:
+      - main # 触发条件，当代码合并到 main 分支时
 
 jobs:
   build:
