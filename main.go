@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/staparx/go_showstart/config"
 	"github.com/staparx/go_showstart/log"
 	"github.com/staparx/go_showstart/vars"
@@ -10,7 +11,13 @@ import (
 )
 
 func main() {
+	// 用于结束程序
+	defer func() {
+		fmt.Println("Press Enter to exit...")
+		fmt.Scanln()
+	}()
 	ctx := context.Background()
+
 	//初始化日志
 	log.InitLogger()
 
@@ -18,8 +25,8 @@ func main() {
 	//初始化时间地区
 	vars.TimeLocal, err = time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		log.Logger.Error("❌ 初始化时间地区失败：", zap.Error(err))
-		return
+		log.Logger.Error("⚠️ 初始化时间地区失败，使用手动定义的时区信息", zap.Error(err))
+		vars.TimeLocal = time.FixedZone("CST", 8*3600)
 	}
 
 	cfg, err := config.InitCfg()

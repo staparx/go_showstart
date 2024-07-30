@@ -3,6 +3,9 @@ package config
 import (
 	"errors"
 	"github.com/spf13/viper"
+	"log"
+	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -42,23 +45,46 @@ type TicketList struct {
 }
 
 func InitCfg() (*Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./..")
+	// 获取当前工作目录
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("未获取到当前工作目录")
+	}
+	log.Println("当前工作目录：", workDir)
+
+	// 获取可执行文件的路径
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Failed to get executable path: %v", err)
+	}
+	log.Println("可执行文件路径：", exePath)
+
+	// 获取可执行文件的目录
+	exeDir := filepath.Dir(exePath)
+
+	// 设置 Viper 的配置文件名和类型
+	viper.SetConfigName("config") // 配置文件名（不带扩展名）
+	viper.SetConfigType("yaml")   // 配置文件类型
+
+	// 首先尝试从可执行文件目录加载配置
+	viper.AddConfigPath(exeDir)
+
+	// 如果在可执行文件目录未找到，则尝试从当前工作目录加载配置
+	viper.AddConfigPath(workDir)
+
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			return nil, errors.New("cant not find config.mapstructure")
+			return nil, errors.New("未读取到配置文件，请确认config.yaml是否存在")
 		}
 	}
 
 	var cfg *Config
 
 	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, errors.New("cant not find config.mapstructure")
+		return nil, errors.New("配置信息映射失败，请检查配置文件格式是否遵循yaml格式")
 	}
 
-	err := cfg.Validate()
+	err = cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
