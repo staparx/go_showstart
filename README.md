@@ -37,6 +37,34 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 - people:观演人姓名
 
 
+## 自主开发
+介绍部分参数定义，方便大家自主开发。调用秀动的接口方法在`client`文件夹中。
+### cusat和cusid
+- 代码：/client/service.go/GetToken()
+- 返参：`access_token`用于Header的cusat`id_token`用于Header的cusid
+
+### traceId
+- 代码：/util/trace.go/GenerateTraceId()
+- 返参：`traceId`用于Header的traceId
+- 解释：`traceId`是一个唯一标识，用于标识请求的唯一性，具体生成方式可以参考代码。由随机数和时间戳组成。
+
+### crpsign
+- 代码：/util/sign.go/GenerateSign()
+- 返参：`crpsign`用于Header的crpsign
+- 解释：`crpsign`是一个加密字段，用于校验请求的合法性，具体加密方式可以参考代码。每次请求时都需要将cusat、cusid、traceId、path等字段拼接后进行Md5加密，得到`crpsign`字段。
+
+### 特殊请求
+- 代码：/util/aes.go/AESEncrypt()
+- 返参：`data`字段内容
+- 解释：部分请求需要对请求参数进行加密，具体加密方式可以参考代码。需要将请求参数进行AES加密，得到`data`字段内容。
+
+### 代补充参数
+- 代码：/vars/const.go
+- 解释：
+  - EncryptPathMap：特殊请求，需要加密的请求路径。
+  - NeedCpMap：根据请求返参的buy_type，判断是否需要填写观演人信息的票务类型。
+  - SaleStatusMap：未使用，记录了已知的返参值对应的票务状态。
+
 
 ## 写在最后
 本软件免费使用，请勿轻信他人。希望大家能原价购买到心仪的票，见到自己想见的人。
