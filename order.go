@@ -7,7 +7,6 @@ import (
 	"github.com/staparx/go_showstart/client"
 	"github.com/staparx/go_showstart/config"
 	"github.com/staparx/go_showstart/log"
-	"github.com/staparx/go_showstart/util"
 	"github.com/staparx/go_showstart/vars"
 	"go.uber.org/zap"
 	"math/rand"
@@ -111,30 +110,32 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 		return err
 	}
 
-	startTime := t.Unix()
-	now := time.Now().Unix()
+	startTime := t.Unix() - 2
+	//时间戳转为时间日期字符串
+	log.Logger.Info(fmt.Sprintf("🕒 抢票启动时间为：%s", time.Unix(startTime, 0).Format("2006-01-02 15:04:05")))
 
-	// 计算等待时间
-	waitTime := startTime - now - 3
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				since := startTime - time.Now().Unix()
 
-	// 等待开票
-	if waitTime > 0 {
-		day, hour, minute, second := util.ConvertSeconds(waitTime)
-		log.Logger.Info(fmt.Sprintf("⏰活动还未开始，预计等待时间为：%d天%d时%d分%d秒 \n", day, hour, minute, second))
-		// 转换为 Duration 类型
-		waitDuration := time.Duration(waitTime) * time.Second
+				if since <= 0 {
+					log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
+					for i := 0; i < cfg.System.MaxGoroutine; i++ {
+						go GoOrder(ctx, i, c, orderReq, cfg)
+					}
+					return
+				} else if since < 10 {
+					log.Logger.Info(fmt.Sprintf("🕒 距离抢票开始还有：%d秒", since))
+				}
+				time.Sleep(time.Second)
 
-		// 设置定时器
-		timer := time.NewTimer(waitDuration)
-
-		// 等待定时器到期
-		<-timer.C
-	}
-
-	log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
-	for i := 0; i < cfg.System.MaxGoroutine; i++ {
-		go GoOrder(ctx, i, c, orderReq, cfg)
-	}
+			}
+		}
+	}()
 
 	return nil
 }

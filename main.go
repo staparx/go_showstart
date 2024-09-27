@@ -7,6 +7,9 @@ import (
 	"github.com/staparx/go_showstart/log"
 	"github.com/staparx/go_showstart/vars"
 	"go.uber.org/zap"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -25,8 +28,9 @@ func main() {
 	//初始化时间地区
 	vars.TimeLocal, err = time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		log.Logger.Error("⚠️ 初始化时间地区失败，使用手动定义的时区信息", zap.Error(err))
+		log.Logger.Error("⚠️ 初始化时间地区失败，正在使用手动定义的时区信息", zap.Error(err))
 		vars.TimeLocal = time.FixedZone("CST", 8*3600)
+		log.Logger.Info("✅ 手动定义的时区信息成功！!")
 	}
 
 	cfg, err := config.InitCfg()
@@ -57,10 +61,17 @@ func main() {
 		}
 	}
 
+	// 捕获终止信号
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
+
 	select {
 	case <-channel:
 		log.Logger.Info("🎉抢票成功！赶紧去订单页面支付吧！！🎉")
 		cancel()
+	case <-stopChan:
+		log.Logger.Info("⚠️ 接收到关闭信号，程序关闭")
+		cancel()
+		return
 	}
-
 }
