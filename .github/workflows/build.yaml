@@ -75,7 +75,7 @@ jobs:
             This is an automated release built from commit ${{ github.sha }}.
 
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: go_showstart_artifacts
           path: ./dist
