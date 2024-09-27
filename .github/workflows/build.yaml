@@ -43,7 +43,7 @@ jobs:
           GOOS=windows GOARCH=386 go build -o dist/go_showstart_windows_386.exe
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: go_showstart_artifacts
           path: dist/*
