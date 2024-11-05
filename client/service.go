@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	jsoniter "github.com/json-iterator/go"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 type ShowStartIface interface {
@@ -279,7 +280,29 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 		return nil, err
 	}
 
-	var resp *GetOrderResultResp
+	// 修复返回值为 pending 时的解析问题
+	type CommonResp struct {
+		Success bool        `json:"success"`
+		Result  interface{} `json:"result"`
+	}
+
+	var commonResp CommonResp
+	err = jsoniter.Unmarshal(result, &commonResp)
+	if err != nil {
+		return nil, err
+	}
+
+	if commonResp.Success && commonResp.Result == "pending" {
+		// 如果 success 为 true 且 result 为 "pending"，则不解析 GetOrderResultResp 中的 result 键
+		return &GetOrderResultResp{
+			ShowStartCommonResp: &ShowStartCommonResp{
+				Success: commonResp.Success,
+			},
+		}, nil
+	}
+
+	// 否则，继续解析为 GetOrderResultResp
+	var resp GetOrderResultResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
 		return nil, err
@@ -293,5 +316,5 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 		return c.GetOrderResult(ctx, orderJobKey)
 	}
 
-	return resp, nil
+	return &resp, nil
 }
