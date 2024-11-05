@@ -23,4 +23,4 @@ go.work
 go.work.sum
 config.yaml
 
-./log/log_file/
+log/log_file/*
