@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"strconv"
+	"time"
+
 	"github.com/staparx/go_showstart/client"
 	"github.com/staparx/go_showstart/config"
 	"github.com/staparx/go_showstart/log"
 	"github.com/staparx/go_showstart/vars"
 	"go.uber.org/zap"
-	"math/rand"
-	"strconv"
-	"time"
 )
 
 type OrderDetail struct {
@@ -156,27 +157,28 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 				continue
 			}
 
-			log.Logger.Info(fmt.Sprintf(logPrefix+"下单成功！核心订单Key：%s", orderResp.Result.CoreOrderKey))
+			// log.Logger.Info(fmt.Sprintf(logPrefix+"下单成功！核心订单Key：%s", orderResp.Result.CoreOrderKey))
 
-			coreOrder, err := c.CoreOrder(ctx, orderResp.Result.CoreOrderKey)
-			if err != nil {
-				log.Logger.Error(logPrefix+"查询核心订单失败：", zap.Error(err))
-				continue
-			}
+			// coreOrder, err := c.CoreOrder(ctx, orderResp.Result.CoreOrderKey)
+			// if err != nil {
+			// 	log.Logger.Error(logPrefix+"查询核心订单失败：", zap.Error(err))
+			// 	continue
+			// }
 
-			var orderJobKey string
-			if coreOrderMap, ok := coreOrder.Result.(map[string]interface{}); ok {
-				if _, okk := coreOrderMap["orderJobKey"].(string); okk {
-					orderJobKey = coreOrderMap["orderJobKey"].(string)
-				}
-			}
+			// var orderJobKey string
+			// if coreOrderMap, ok := coreOrder.Result.(map[string]interface{}); ok {
+			// 	if _, okk := coreOrderMap["orderJobKey"].(string); okk {
+			// 		orderJobKey = coreOrderMap["orderJobKey"].(string)
+			// 	}
+			// }
 
+			orderJobKey := orderResp.Result.OrderJobKey
 			if orderJobKey == "" {
-				log.Logger.Error(logPrefix + "核心订单Key为空")
+				log.Logger.Error(logPrefix + "orderJobKey为空")
 				continue
 			}
 
-			log.Logger.Info(fmt.Sprintf(logPrefix+"查询核心订单成功！订单任务Key：%s", orderJobKey))
+			log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单成功！orderJobKey：%s", orderJobKey))
 
 			//查询订单结果
 			_, err = c.GetOrderResult(ctx, orderJobKey)
