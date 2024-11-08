@@ -143,13 +143,18 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 
 func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config) {
 	logPrefix := fmt.Sprintf("[%d]", index)
+	firstLoop := true
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			TimeSleep(cfg.System)
+			if !firstLoop {
+				TimeSleep(cfg.System)
+			} else {
+				firstLoop = false
+			}
 			//下单
 			orderResp, err := c.Order(ctx, orderReq)
 			if err != nil {
