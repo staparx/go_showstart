@@ -13,6 +13,7 @@ import (
 	"github.com/staparx/go_showstart/log"
 	"github.com/staparx/go_showstart/vars"
 	"go.uber.org/zap"
+	"gopkg.in/gomail.v2"
 )
 
 type OrderDetail struct {
@@ -141,6 +142,23 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 	return nil
 }
 
+// 发送邮件
+func sendEmail(subject, body string, cfg *config.Config) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", cfg.SmtpEmail.Username)
+	m.SetHeader("To", cfg.SmtpEmail.To)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", body)
+
+	d := gomail.NewDialer(cfg.SmtpEmail.Host, 587, cfg.SmtpEmail.Username, cfg.SmtpEmail.Password)
+
+	// 发送邮件
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+	return nil
+}
+
 func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config) {
 	logPrefix := fmt.Sprintf("[%d]", index)
 	firstLoop := true
@@ -190,6 +208,19 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 			if err != nil {
 				log.Logger.Error(logPrefix+"查询订单结果失败：", zap.Error(err))
 				continue
+			}
+
+			// 下单成功，发送邮件提醒
+			if cfg.SmtpEmail.Enable {
+				go func() {
+					subject := "下单成功通知"
+					body := fmt.Sprintf("查询订单成功！orderJobKey：%s", orderJobKey)
+					if err := sendEmail(subject, body, cfg); err != nil {
+						log.Logger.Error(logPrefix+"发送邮件失败：", zap.Error(err))
+					} else {
+						log.Logger.Info(logPrefix + "下单成功，邮件已发送")
+					}
+				}()
 			}
 
 			channel <- struct{}{}

@@ -2,16 +2,18 @@ package config
 
 import (
 	"errors"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	System    *System    `mapstructure:"system"`
-	Showstart *Showstart `mapstructure:"showstart"`
-	Ticket    *Ticket    `mapstructure:"ticket"`
+	System    *System     `mapstructure:"system"`
+	Showstart *Showstart  `mapstructure:"showstart"`
+	Ticket    *Ticket     `mapstructure:"ticket"`
+	SmtpEmail *smtp_email `mapstructure:"smtp_email"`
 }
 
 type System struct {
@@ -42,6 +44,14 @@ type Ticket struct {
 type TicketList struct {
 	Session string `mapstructure:"session"`
 	Price   string `mapstructure:"price"`
+}
+
+type smtp_email struct {
+	Host     string `mapstructure:"host"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	To       string `mapstructure:"email_to"`
+	Enable   bool   `mapstructure:"enable"`
 }
 
 func InitCfg() (*Config, error) {
