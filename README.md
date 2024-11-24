@@ -39,10 +39,10 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 
 ### smtp_email
 - enable: 1 开启 0 关闭
-- host: "smtp.qq.com" 邮箱服务器
-- username: "...@qq.com" SMTP邮箱
-- password: ""  SMTP邮箱服务授权码
-- email_to: "...@qq.com" 接收消息邮箱
+- host: `"smtp.qq.com"` 邮箱服务器
+- username: `"...@qq.com"` SMTP邮箱
+- password: `""`  SMTP邮箱服务授权码
+- email_to: `"...@qq.com"` 接收消息邮箱
 
 
 ## 自主开发
