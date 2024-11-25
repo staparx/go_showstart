@@ -37,6 +37,14 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 - people:观演人姓名
 
 
+### smtp_email
+- enable: 1 开启 0 关闭
+- host: `"smtp.qq.com"` 邮箱服务器
+- username: `"...@qq.com"` SMTP邮箱
+- password: `""`  SMTP邮箱服务授权码
+- email_to: `"...@qq.com"` 接收消息邮箱
+
+
 ## 自主开发
 介绍部分参数定义，方便大家自主开发。调用秀动的接口方法在`client`文件夹中。
 ### cusat和cusid

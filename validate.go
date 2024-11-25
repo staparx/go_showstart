@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"strings"
+
 	"github.com/staparx/go_showstart/client"
 	"github.com/staparx/go_showstart/config"
 	"github.com/staparx/go_showstart/log"
 	"go.uber.org/zap"
-	"math"
 )
 
 type ValidateService struct {
@@ -68,7 +70,7 @@ func (s *ValidateService) ValidateSystem(ctx context.Context) ([]*buyTicket, err
 	for _, ticket := range s.cfg.Ticket.List {
 		for _, result := range ticketList.Result {
 			//找到对应的场次
-			if result.SessionName == ticket.Session {
+			if DelectStringBlank(result.SessionName) == DelectStringBlank(ticket.Session) {
 				//找到对应的票价
 				for _, ticketPrice := range result.TicketPriceList {
 					if ticket.Price == ticketPrice.Price {
@@ -101,4 +103,9 @@ func (s *ValidateService) ValidateSystem(ctx context.Context) ([]*buyTicket, err
 	log.Logger.Info("==============================================")
 
 	return buyTicketList, nil
+}
+
+// DelectStringBlank 函数移除字符串中的所有空格
+func DelectStringBlank(s string) string {
+	return strings.ReplaceAll(s, " ", "")
 }

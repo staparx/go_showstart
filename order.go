@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"strconv"
+	"time"
+
 	"github.com/staparx/go_showstart/client"
 	"github.com/staparx/go_showstart/config"
 	"github.com/staparx/go_showstart/log"
 	"github.com/staparx/go_showstart/vars"
 	"go.uber.org/zap"
-	"math/rand"
-	"strconv"
-	"time"
+	"gopkg.in/gomail.v2"
 )
 
 type OrderDetail struct {
@@ -140,15 +142,37 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 	return nil
 }
 
+// 发送邮件
+func sendEmail(subject, body string, cfg *config.Config) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", cfg.SmtpEmail.Username)
+	m.SetHeader("To", cfg.SmtpEmail.To)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", body)
+
+	d := gomail.NewDialer(cfg.SmtpEmail.Host, 587, cfg.SmtpEmail.Username, cfg.SmtpEmail.Password)
+
+	// 发送邮件
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+	return nil
+}
+
 func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config) {
 	logPrefix := fmt.Sprintf("[%d]", index)
+	firstLoop := true
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			TimeSleep(cfg.System)
+			if !firstLoop {
+				TimeSleep(cfg.System)
+			} else {
+				firstLoop = false
+			}
 			//下单
 			orderResp, err := c.Order(ctx, orderReq)
 			if err != nil {
@@ -156,33 +180,47 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 				continue
 			}
 
-			log.Logger.Info(fmt.Sprintf(logPrefix+"下单成功！核心订单Key：%s", orderResp.Result.CoreOrderKey))
+			// log.Logger.Info(fmt.Sprintf(logPrefix+"下单成功！核心订单Key：%s", orderResp.Result.CoreOrderKey))
 
-			coreOrder, err := c.CoreOrder(ctx, orderResp.Result.CoreOrderKey)
-			if err != nil {
-				log.Logger.Error(logPrefix+"查询核心订单失败：", zap.Error(err))
-				continue
-			}
+			// coreOrder, err := c.CoreOrder(ctx, orderResp.Result.CoreOrderKey)
+			// if err != nil {
+			// 	log.Logger.Error(logPrefix+"查询核心订单失败：", zap.Error(err))
+			// 	continue
+			// }
 
-			var orderJobKey string
-			if coreOrderMap, ok := coreOrder.Result.(map[string]interface{}); ok {
-				if _, okk := coreOrderMap["orderJobKey"].(string); okk {
-					orderJobKey = coreOrderMap["orderJobKey"].(string)
-				}
-			}
+			// var orderJobKey string
+			// if coreOrderMap, ok := coreOrder.Result.(map[string]interface{}); ok {
+			// 	if _, okk := coreOrderMap["orderJobKey"].(string); okk {
+			// 		orderJobKey = coreOrderMap["orderJobKey"].(string)
+			// 	}
+			// }
 
+			orderJobKey := orderResp.Result.OrderJobKey
 			if orderJobKey == "" {
-				log.Logger.Error(logPrefix + "核心订单Key为空")
+				log.Logger.Error(logPrefix + "orderJobKey为空")
 				continue
 			}
 
-			log.Logger.Info(fmt.Sprintf(logPrefix+"查询核心订单成功！订单任务Key：%s", orderJobKey))
+			log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单成功！orderJobKey：%s", orderJobKey))
 
 			//查询订单结果
 			_, err = c.GetOrderResult(ctx, orderJobKey)
 			if err != nil {
 				log.Logger.Error(logPrefix+"查询订单结果失败：", zap.Error(err))
 				continue
+			}
+
+			// 下单成功，发送邮件提醒
+			if cfg.SmtpEmail.Enable {
+				go func() {
+					subject := "下单成功通知"
+					body := fmt.Sprintf("查询订单成功！orderJobKey：%s", orderJobKey)
+					if err := sendEmail(subject, body, cfg); err != nil {
+						log.Logger.Error(logPrefix+"发送邮件失败：", zap.Error(err))
+					} else {
+						log.Logger.Info(logPrefix + "下单成功，邮件已发送")
+					}
+				}()
 			}
 
 			channel <- struct{}{}

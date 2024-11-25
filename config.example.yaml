@@ -23,3 +23,10 @@ ticket:
   people:
     - "观演人1"
     - "观演人2"
+
+smtp_email:
+  enable: 0
+  host: "smtp.qq.com"
+  username: "...@qq.com"
+  password: ""
+  email_to: "...@qq.com"
