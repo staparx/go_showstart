@@ -115,7 +115,7 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 		return err
 	}
 
-	startTime := t.Unix() - 2
+	startTime := t.Unix()
 	//时间戳转为时间日期字符串
 	log.Logger.Info(fmt.Sprintf("🕒 抢票启动时间为：%s", time.Unix(startTime, 0).Format("2006-01-02 15:04:05")))
 
