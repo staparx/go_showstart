@@ -24,6 +24,7 @@ func NewValidateService(ctx context.Context, cfg *config.Config) *ValidateServic
 }
 
 type buyTicket struct {
+	ActivityName                string             `json:"activityName"`
 	SessionName                 string             `json:"sessionName"`
 	SessionID                   int                `json:"sessionId"`
 	IsConfirmedStartTime        int                `json:"isConfirmedStartTime"`
@@ -76,6 +77,7 @@ func (s *ValidateService) ValidateSystem(ctx context.Context) ([]*buyTicket, err
 					if ticket.Price == ticketPrice.Price {
 						//将场次票价信息保存下来
 						buyTicketList = append(buyTicketList, &buyTicket{
+							ActivityName:                detail.Result.ActivityName,
 							SessionName:                 result.SessionName,
 							SessionID:                   result.SessionID,
 							IsConfirmedStartTime:        result.IsConfirmedStartTime,

@@ -17,12 +17,15 @@ import (
 )
 
 type OrderDetail struct {
-	ActivityID int
-	GoodType   int
-	TicketID   string
+	ActivityName string
+	SessionName  string
+	Price        string
+	ActivityID   int
+	GoodType     int
+	TicketID     string
 }
 
-var channel = make(chan struct{})
+var channel = make(chan *OrderDetail)
 
 func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) error {
 	c := client.NewShowStartClient(ctx, cfg.Showstart)
@@ -127,7 +130,7 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 				if since <= 0 {
 					log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
 					for i := 0; i < cfg.System.MaxGoroutine; i++ {
-						go GoOrder(ctx, i, c, orderReq, cfg)
+						go GoOrder(ctx, i, c, orderReq, cfg, order)
 					}
 					return
 				} else if since < 10 {
@@ -159,7 +162,7 @@ func sendEmail(subject, body string, cfg *config.Config) error {
 	return nil
 }
 
-func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config) {
+func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config, order *OrderDetail) {
 	logPrefix := fmt.Sprintf("[%d]", index)
 	firstLoop := true
 
@@ -210,20 +213,8 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 				continue
 			}
 
-			// 下单成功，发送邮件提醒
-			if cfg.SmtpEmail.Enable {
-				go func() {
-					subject := "下单成功通知"
-					body := fmt.Sprintf("查询订单成功！orderJobKey：%s", orderJobKey)
-					if err := sendEmail(subject, body, cfg); err != nil {
-						log.Logger.Error(logPrefix+"发送邮件失败：", zap.Error(err))
-					} else {
-						log.Logger.Info(logPrefix + "下单成功，邮件已发送")
-					}
-				}()
-			}
-
-			channel <- struct{}{}
+			channel <- order
+			return
 		}
 
 	}

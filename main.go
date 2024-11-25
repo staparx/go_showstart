@@ -51,9 +51,12 @@ func main() {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	for _, ticket := range buyTicketList {
 		err = ConfirmOrder(cancelCtx, &OrderDetail{
-			ActivityID: cfg.Ticket.ActivityId,
-			GoodType:   ticket.Ticket.GoodType,
-			TicketID:   ticket.Ticket.TicketID,
+			ActivityName: ticket.ActivityName,
+			SessionName:  ticket.SessionName,
+			Price:        ticket.Ticket.SellingPrice,
+			ActivityID:   cfg.Ticket.ActivityId,
+			GoodType:     ticket.Ticket.GoodType,
+			TicketID:     ticket.Ticket.TicketID,
 		}, cfg)
 		if err != nil {
 			log.Logger.Error("❌ 抢票失败！！！程序结束")
@@ -66,9 +69,21 @@ func main() {
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case <-channel:
-		log.Logger.Info("🎉抢票成功！赶紧去订单页面支付吧！！🎉")
+	case order := <-channel:
 		cancel()
+		log.Logger.Info("🎉抢票成功！赶紧去订单页面支付吧！！🎉")
+		// 下单成功，发送邮件提醒
+		if cfg.SmtpEmail.Enable {
+			subject := vars.GetEmailTitle()
+
+			body := vars.GetEmailFormat(order.ActivityName, order.SessionName, order.Price)
+
+			if err := sendEmail(subject, body, cfg); err != nil {
+				log.Logger.Error("发送邮件失败：", zap.Error(err))
+			} else {
+				log.Logger.Info("下单成功，邮件已发送")
+			}
+		}
 	case <-stopChan:
 		log.Logger.Info("⚠️ 接收到关闭信号，程序关闭")
 		cancel()
