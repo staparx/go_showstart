@@ -3,7 +3,8 @@ package vars
 import "time"
 
 var (
-	TimeLocal *time.Location
+	TimeLocal        *time.Location
+	TimeLoadLocation = "Asia/Shanghai"
 )
 
 var (

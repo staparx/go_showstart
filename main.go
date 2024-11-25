@@ -26,12 +26,17 @@ func main() {
 
 	var err error
 	//初始化时间地区
-	vars.TimeLocal, err = time.LoadLocation("Asia/Shanghai")
+	vars.TimeLocal, err = time.LoadLocation(vars.TimeLoadLocation)
 	if err != nil {
 		log.Logger.Error("⚠️ 初始化时间地区失败，正在使用手动定义的时区信息", zap.Error(err))
 		vars.TimeLocal = time.FixedZone("CST", 8*3600)
 		log.Logger.Info("✅ 手动定义的时区信息成功！!")
+	} else {
+		log.Logger.Info(fmt.Sprintf("✅ 时间地区 %s 初始化成功！!", vars.TimeLoadLocation))
 	}
+
+	// 打印当前系统时间
+	log.Logger.Info(fmt.Sprintf("⏰ 当前系统时间：%s", time.Now().Format("2006-01-02 15:04:05")))
 
 	cfg, err := config.InitCfg()
 	if err != nil {
