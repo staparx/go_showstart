@@ -81,3 +81,13 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 - 请勿使用本软件用于获利 本软件仅用于学习使用
 - 希望大家能够遵守相关法律法规，不要用于非法用途。
 ```
+
+
+## 贡献者
+因原作者本身工作原因，无法及时更新，特此开源，希望大家能够一起完善。
+
+感谢提交PR的小伙伴们
+
+<a href="https://github.com/staparx/go_showstart/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=staparx/go_showstart" />
+</a>
