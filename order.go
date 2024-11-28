@@ -109,23 +109,25 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 
 	log.Logger.Info(fmt.Sprintf("👪观演人数：%d（请注意活动的购票数量限制！）", num))
 
-	t, err := time.ParseInLocation("2006-01-02 15:04:05", cfg.Ticket.StartTime, vars.TimeLocal)
+	t, err := time.ParseInLocation("2006-01-02 15:04:05.000", cfg.Ticket.StartTime, vars.TimeLocal)
 	if err != nil {
-		log.Logger.Error("⏰时间格式" + cfg.Ticket.StartTime + "错误，正确格式为：2006-01-02 15:04:05 ")
+		log.Logger.Error("⏰时间格式" + cfg.Ticket.StartTime + "错误，正确格式为：2006-01-02 15:04:05.000 ")
 		return err
 	}
 
-	startTime := t.Unix()
-	//时间戳转为时间日期字符串
-	log.Logger.Info(fmt.Sprintf("🕒 抢票启动时间为：%s", time.Unix(startTime, 0).Format("2006-01-02 15:04:05")))
+	log.Logger.Info(fmt.Sprintf("🕒 抢票启动时间为：%s", t.Format("2006-01-02 15:04:05.000")))
+	startTime := t.UnixNano() / int64(time.Microsecond)
 
 	go func() {
+		// 10s 倒计时启动标志
+		ten_flag := true
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				since := startTime - time.Now().Unix()
+				// since 精确到Microsecond
+				since := (startTime - time.Now().UnixNano()/int64(time.Microsecond))
 
 				if since <= 0 {
 					log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
@@ -133,10 +135,19 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 						go GoOrder(ctx, i, c, orderReq, cfg, order)
 					}
 					return
-				} else if since < 10 {
-					log.Logger.Info(fmt.Sprintf("🕒 距离抢票开始还有：%d秒", since))
+				} else if since < 10000000 && ten_flag {
+					go func(since int64) {
+						// 每秒打印一次
+						for since > 0 {
+							log.Logger.Info(fmt.Sprintf("🕒 距离抢票开始还有：%d秒", since/1000000))
+							time.Sleep(1 * time.Second)
+							since -= 1000000
+						}
+					}(since)
+					ten_flag = false
 				}
-				time.Sleep(time.Second)
+				// time.Sleep 0.1s
+				time.Sleep(100 * time.Millisecond)
 
 			}
 		}
