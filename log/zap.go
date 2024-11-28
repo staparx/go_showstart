@@ -2,12 +2,13 @@ package log
 
 import (
 	"fmt"
-	zaprotatelogs "github.com/lestrrat-go/file-rotatelogs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"path"
 	"time"
+
+	zaprotatelogs "github.com/lestrrat-go/file-rotatelogs"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var Logger *zap.Logger
@@ -37,11 +38,15 @@ func initZap() (logger *zap.Logger) {
 // getEncoderCore 获取Encoder的zapcore.Core
 func getEncoderCore() (core zapcore.Core) {
 	//普通日志和错误日志分开存储
+	//新加一个debug日志，用于调试
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl <= zapcore.WarnLevel
+		return lvl < zapcore.ErrorLevel && lvl >= level
 	})
 	errLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl > zapcore.WarnLevel
+		return lvl >= zapcore.ErrorLevel
+	})
+	debugLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+		return lvl < zapcore.InfoLevel
 	})
 
 	infoWriter, err := getWriteSyncer("info")
@@ -54,10 +59,16 @@ func getEncoderCore() (core zapcore.Core) {
 		fmt.Printf("Get errWriter Syncer Failed err:%v", err.Error())
 		return
 	}
+	debugWriter, err := getWriteSyncer("debug")
+	if err != nil {
+		fmt.Printf("Get debugWriter Syncer Failed err:%v", err.Error())
+		return
+	}
 
 	return zapcore.NewTee(
 		zapcore.NewCore(getEncoder(), infoWriter, infoLevel),
 		zapcore.NewCore(getEncoder(), errWriter, errLevel),
+		zapcore.NewCore(getEncoder(), debugWriter, debugLevel),
 	)
 }
 
@@ -68,8 +79,13 @@ func getWriteSyncer(fileName string) (zapcore.WriteSyncer, error) {
 		zaprotatelogs.WithMaxAge(7*24*time.Hour),
 		zaprotatelogs.WithRotationTime(24*time.Hour),
 	)
+	// 如果为debug日志，不输出到控制台
+	if fileName == "debug" {
+		return zapcore.NewMultiWriteSyncer(zapcore.AddSync(fileWriter)), err
+	} else {
+		return zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(fileWriter)), err
+	}
 
-	return zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(fileWriter)), err
 }
 
 // getEncoder 获取zapcore.Encoder

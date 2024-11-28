@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	jsoniter "github.com/json-iterator/go"
+	"github.com/staparx/go_showstart/log"
 )
 
 type ShowStartIface interface {
@@ -215,6 +218,9 @@ func (c *ShowStartClient) Order(ctx context.Context, req *OrderReq) (*OrderResp,
 		return nil, err
 	}
 
+	// 将 Order 的返回值打印到Debug日志中
+	log.Logger.Debug("Order:", zap.String("result", string(result)))
+
 	var resp *OrderResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
@@ -279,6 +285,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 	if err != nil {
 		return nil, err
 	}
+
+	// 将 GetOrderResult 的返回值打印到Debug日志中
+	log.Logger.Debug("GetOrderResult:", zap.String("result", string(result)))
 
 	// 修复返回值为 pending 时的解析问题
 	type CommonResp struct {
