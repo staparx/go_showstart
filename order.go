@@ -175,7 +175,9 @@ func sendEmail(subject, body string, cfg *config.Config) error {
 
 func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *client.OrderReq, cfg *config.Config, order *OrderDetail) {
 	logPrefix := fmt.Sprintf("[%d]", index)
-	firstLoop := true
+
+	// 除线程0，初始循环仍然加入随机等待
+	firstLoop := index == 0
 
 	for {
 		select {
