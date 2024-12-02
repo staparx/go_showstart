@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/zap"
-
 	jsoniter "github.com/json-iterator/go"
 	"github.com/staparx/go_showstart/log"
 )
@@ -43,7 +41,7 @@ func (c *ShowStartClient) GetToken(ctx context.Context) error {
 	}
 
 	// 添加 GetToken 的返回值到Debug日志中
-	log.Logger.Debug("GetToken:", zap.String("result", string(result)))
+	log.Logger.Debug("GetToken:" + string(result))
 
 	var resp *GetTokenResp
 	err = jsoniter.Unmarshal(result, &resp)
@@ -222,7 +220,7 @@ func (c *ShowStartClient) Order(ctx context.Context, req *OrderReq) (*OrderResp,
 	}
 
 	// 将 Order 的返回值打印到Debug日志中
-	log.Logger.Debug("Order:", zap.String("result", string(result)))
+	log.Logger.Debug("Order:" + string(result))
 
 	var resp *OrderResp
 	err = jsoniter.Unmarshal(result, &resp)
@@ -291,7 +289,7 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 	}
 
 	// 将 GetOrderResult 的返回值打印到Debug日志中
-	log.Logger.Debug("GetOrderResult:", zap.String("result", string(result)))
+	log.Logger.Debug("GetOrderResult: " + string(result))
 
 	// 修复返回值为 pending 时的解析问题
 	type CommonResp struct {
@@ -329,5 +327,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 		return c.GetOrderResult(ctx, orderJobKey)
 	}
 
-	return &resp, nil
+	if resp.Success || resp.State == "1" {
+		return &resp, nil
+	}
+
+	return nil, errors.New(resp.Msg)
 }
