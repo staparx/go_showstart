@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/staparx/go_showstart/config"
-	"github.com/staparx/go_showstart/log"
-	"github.com/staparx/go_showstart/vars"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/staparx/go_showstart/config"
+	"github.com/staparx/go_showstart/log"
+	"github.com/staparx/go_showstart/vars"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -25,6 +26,9 @@ func main() {
 	log.InitLogger()
 
 	var err error
+
+	vars.ShowPortal()
+
 	//初始化时间地区
 	vars.TimeLocal, err = time.LoadLocation(vars.TimeLoadLocation)
 	if err != nil {

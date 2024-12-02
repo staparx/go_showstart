@@ -121,6 +121,8 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 	go func() {
 		// 10s 倒计时启动标志
 		ten_flag := true
+		// token 重新获取标志，防止过期
+		token_flag := true
 		for {
 			select {
 			case <-ctx.Done():
@@ -135,7 +137,7 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 						go GoOrder(ctx, i, c, orderReq, cfg, order)
 					}
 					return
-				} else if since < 10000000 && ten_flag {
+				} else if since < 1000000*10 && ten_flag {
 					go func(since int64) {
 						// 每秒打印一次
 						for since > 0 {
@@ -145,6 +147,14 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 						}
 					}(since)
 					ten_flag = false
+				} else if since < 1000000*60*3 && since > 1000000*60 && token_flag {
+					// token 重新获取
+					err := c.GetToken(ctx)
+					if err != nil {
+						log.Logger.Error("token重新获取失败：", zap.Error(err))
+						return
+					}
+					token_flag = false
 				}
 				// time.Sleep 0.1s
 				time.Sleep(100 * time.Millisecond)

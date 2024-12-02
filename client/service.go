@@ -42,6 +42,9 @@ func (c *ShowStartClient) GetToken(ctx context.Context) error {
 		return err
 	}
 
+	// 添加 GetToken 的返回值到Debug日志中
+	log.Logger.Debug("GetToken:", zap.String("result", string(result)))
+
 	var resp *GetTokenResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
@@ -242,6 +245,7 @@ func (c *ShowStartClient) Order(ctx context.Context, req *OrderReq) (*OrderResp,
 	return nil, errors.New(resp.Msg)
 }
 
+// 未使用
 func (c *ShowStartClient) CoreOrder(ctx context.Context, coreOrderKey string) (*OrderCoreResp, error) {
 	path := "/nj/order/coreOrder"
 
