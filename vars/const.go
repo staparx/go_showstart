@@ -31,6 +31,12 @@ var (
 		3: false,
 		4: false,
 	}
+
+	// NeedAdress 是否需要填写地址信息
+	NeedAdress = map[int]bool{
+		1: false,
+		2: true,
+	}
 )
 
 var (

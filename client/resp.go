@@ -223,6 +223,15 @@ type ConfirmResp struct {
 	} `json:"result"`
 }
 
+type AdressListResp struct {
+	*ShowStartCommonResp
+	Result []struct {
+		ID        int    `json:"id"`
+		Address   string `json:"address"`
+		IsDefault int    `json:"isDefault"`
+	} `json:"result"`
+}
+
 type CpListResp struct {
 	*ShowStartCommonResp
 	Result []struct {

@@ -109,6 +109,36 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 
 	log.Logger.Info(fmt.Sprintf("👪观演人数：%d（请注意活动的购票数量限制！）", num))
 
+	//是否需要填写地址
+	if vars.NeedAdress[confirm.Result.OrderInfoVo.TicketPriceVo.TicketType] {
+		log.Logger.Info(fmt.Sprintf("🏃地址票务类型为:%d ，匹配地址信息中...", confirm.Result.OrderInfoVo.TicketPriceVo.TicketType))
+		//查询地址信息
+		adressList, err := c.AdressList(ctx)
+		if err != nil {
+			log.Logger.Error("❌ 查询地址信息失败：", zap.Error(err))
+			return err
+		}
+
+		if len(adressList.Result) > 0 {
+			for _, v := range adressList.Result {
+				if v.IsDefault == 1 {
+					orderReq.AddressID = strconv.Itoa(v.ID)
+					log.Logger.Info(fmt.Sprintf("🏠地址信息匹配成功！地址：%s", v.Address))
+					break
+				}
+			}
+			if orderReq.AddressID == "" {
+				log.Logger.Error("❌ 地址信息匹配失败，请设置默认地址")
+				return errors.New("地址信息匹配失败，请设置默认地址")
+			}
+		} else {
+			log.Logger.Error("❌ 地址信息匹配失败，请设置默认地址")
+			return errors.New("地址信息匹配失败，请设置默认地址")
+		}
+	} else {
+		log.Logger.Info(fmt.Sprintf("🏃地址票务类型为:%d ，无需选择地址 ", confirm.Result.OrderInfoVo.TicketPriceVo.TicketType))
+	}
+
 	t, err := time.ParseInLocation("2006-01-02 15:04:05.000", cfg.Ticket.StartTime, vars.TimeLocal)
 	if err != nil {
 		log.Logger.Error("⏰时间格式" + cfg.Ticket.StartTime + "错误，正确格式为：2006-01-02 15:04:05.000 ")

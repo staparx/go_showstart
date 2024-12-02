@@ -19,6 +19,8 @@ type ShowStartIface interface {
 	ActivityTicketList(ctx context.Context, activityId int) (*ActivityTicketListResp, error)
 	// Confirm 确认购买
 	Confirm(ctx context.Context, activityId int, ticketId, ticketNum string) (*ConfirmResp, error)
+	// AdressList 地址列表
+	AdressList(ctx context.Context) (*AdressListResp, error)
 	// CpList 观演人列表
 	CpList(ctx context.Context, ticketId string) (*CpListResp, error)
 	OrderList(ctx context.Context, req *OrderListReq) (*OrderListResp, error)
@@ -132,6 +134,9 @@ func (c *ShowStartClient) Confirm(ctx context.Context, activityId int, ticketId,
 		return nil, err
 	}
 
+	// 将 Confirm 的返回值打印到Debug日志中
+	log.Logger.Debug("Confirm:" + string(result))
+
 	var resp *ConfirmResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
@@ -143,6 +148,32 @@ func (c *ShowStartClient) Confirm(ctx context.Context, activityId int, ticketId,
 			return nil, err
 		}
 		return c.Confirm(ctx, activityId, ticketId, ticketNum)
+	}
+
+	return resp, nil
+}
+
+// AdressList 地址列表
+func (c *ShowStartClient) AdressList(ctx context.Context) (*AdressListResp, error) {
+	path := "/wap/address/list"
+	data := fmt.Sprintf(`{"st_flpv":"%s","sign":"%s","trackPath":""}`, c.StFlpv, c.Sign)
+
+	result, err := c.Post(ctx, path, data)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *AdressListResp
+	err = jsoniter.Unmarshal(result, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.State == "token-expire-at" || resp.Msg == "登录过期了，请重新登录！" {
+		err = c.GetToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return c.AdressList(ctx)
 	}
 
 	return resp, nil
@@ -304,12 +335,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 	}
 
 	if commonResp.Success && commonResp.Result == "pending" {
-		// 如果 success 为 true 且 result 为 "pending"，则不解析 GetOrderResultResp 中的 result 键
-		return &GetOrderResultResp{
-			ShowStartCommonResp: &ShowStartCommonResp{
-				Success: commonResp.Success,
-			},
-		}, nil
+		// 如果 success 为 true 且 result 为 "pending"，则等待 200ms 后再次查询
+		time.Sleep(200 * time.Millisecond)
+		return c.GetOrderResult(ctx, orderJobKey)
 	}
 
 	// 否则，继续解析为 GetOrderResultResp
