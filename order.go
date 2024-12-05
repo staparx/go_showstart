@@ -146,52 +146,72 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 	}
 
 	log.Logger.Info(fmt.Sprintf("🕒 抢票启动时间为：%s", t.Format("2006-01-02 15:04:05.000")))
-	startTime := t.UnixNano() / int64(time.Microsecond)
 
-	go func() {
-		// 10s 倒计时启动标志
-		ten_flag := true
-		// token 重新获取标志，防止过期
-		token_flag := true
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				// since 精确到Microsecond
-				since := (startTime - time.Now().UnixNano()/int64(time.Microsecond))
+	// time.Millisecond，精确到毫秒
+	startTime := t.UnixNano() / int64(time.Millisecond)
 
-				if since <= 0 {
-					log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
-					for i := 0; i < cfg.System.MaxGoroutine; i++ {
-						go GoOrder(ctx, i, c, orderReq, cfg, order)
-					}
-					return
-				} else if since < 1000000*10 && ten_flag {
-					go func(since int64) {
-						// 每秒打印一次
-						for since > 0 {
-							log.Logger.Info(fmt.Sprintf("🕒 距离抢票开始还有：%d秒", since/1000000))
-							time.Sleep(1 * time.Second)
-							since -= 1000000
-						}
-					}(since)
-					ten_flag = false
-				} else if since < 1000000*60*3 && since > 1000000*60 && token_flag {
-					// token 重新获取
-					err := c.GetToken(ctx)
-					if err != nil {
-						log.Logger.Error("token重新获取失败：", zap.Error(err))
-						return
-					}
-					token_flag = false
-				}
-				// time.Sleep 0.1s
-				time.Sleep(100 * time.Millisecond)
-
+	// 开始抢票进程
+	StartOrder := func() {
+		// since 精确到毫秒
+		since := (startTime - time.Now().UnixNano()/int64(time.Millisecond))
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(since) * time.Millisecond):
+			log.Logger.Info("🚀活动即将开始，开始监听抢票！！！")
+			for i := 0; i < cfg.System.MaxGoroutine; i++ {
+				go GoOrder(ctx, i, c, orderReq, cfg, order)
 			}
 		}
-	}()
+	}
+
+	// 倒计时进程
+	Countdown := func() {
+		// since 精确到毫秒
+		since := (startTime - time.Now().UnixNano()/int64(time.Millisecond))
+		// since 减去 10s
+		since -= 10000
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(since) * time.Millisecond):
+			since = (startTime - time.Now().UnixNano()/int64(time.Millisecond))
+			// 加入 ctx.Done() 退出
+			for since > 0 && ctx.Err() == nil {
+				log.Logger.Info(fmt.Sprintf("🕒 距离抢票开始还有：%d秒", since/1000))
+				time.Sleep(1 * time.Second)
+				since -= 1000
+			}
+		}
+	}
+
+	// token 重新获取进程
+	GetTokenAgain := func() {
+		// since 精确到毫秒
+		since := (startTime - time.Now().UnixNano()/int64(time.Millisecond))
+		// since 减去 3min
+		since -= 1000 * 60 * 3
+		// 如果距离开始时间小于3min，不再重新获取token
+		if since < 0 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(since) * time.Millisecond):
+			// token 重新获取
+			err := c.GetToken(ctx)
+			if err != nil {
+				log.Logger.Error("token重新获取失败：", zap.Error(err))
+				return
+			}
+		}
+	}
+
+	// 启动
+	go StartOrder()
+	go Countdown()
+	go GetTokenAgain()
 
 	return nil
 }
