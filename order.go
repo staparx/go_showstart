@@ -27,6 +27,8 @@ type OrderDetail struct {
 
 var channel = make(chan *OrderDetail)
 
+var ErrorChannel = make(chan error)
+
 func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) error {
 	c := client.NewShowStartClient(ctx, cfg.Showstart)
 
@@ -203,7 +205,13 @@ func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) e
 			err := c.GetToken(ctx)
 			if err != nil {
 				log.Logger.Error("token重新获取失败：", zap.Error(err))
-				return
+				// 再次获取
+				err = c.GetToken(ctx)
+				if err != nil {
+					log.Logger.Error("token重新获取失败：", zap.Error(err))
+					ErrorChannel <- err
+					return
+				}
 			}
 		}
 	}
