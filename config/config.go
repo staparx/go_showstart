@@ -2,9 +2,11 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/spf13/viper"
 )
@@ -102,6 +104,51 @@ func InitCfg() (*Config, error) {
 	return cfg, nil
 }
 
+// 保存手动匹配信息到config.yaml
+func SaveCfg(SessionName string, Price string) error {
+	filename := "config.yaml"
+
+	// 以文本读取
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	// 将文件内容转换为字符串
+	content := string(data)
+
+	// 使用正则表达式定位 session:.*\n 的位置 并替换第一个匹配项
+	re := regexp.MustCompile(`(?m)session:.*\n`)
+	replaced := false
+	content = re.ReplaceAllStringFunc(content, func(match string) string {
+		if !replaced {
+			replaced = true
+			return fmt.Sprintf("session: \"%s\"\n", SessionName)
+		}
+		return match
+	})
+
+	// 使用正则表达式定位 price: "" 的位置 并替换第一个匹配项
+	re = regexp.MustCompile(`(?m)price:.*\n`)
+	replaced = false
+	content = re.ReplaceAllStringFunc(content, func(match string) string {
+		if !replaced {
+			replaced = true
+			return fmt.Sprintf("price: \"%s\"\n", Price)
+		}
+		return match
+	})
+
+	// 将修改后的内容写回文件
+	err = os.WriteFile(filename, []byte(content), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func (cfg *Config) Validate() error {
 	if cfg.Ticket == nil {
 		return errors.New("未读取到票务配置信息")
@@ -113,6 +160,10 @@ func (cfg *Config) Validate() error {
 
 	if len(cfg.Ticket.People) == 0 {
 		return errors.New("未读取到观演人信息")
+	}
+
+	if cfg.SmtpEmail == nil {
+		return errors.New("未读取到邮件配置信息")
 	}
 
 	return nil

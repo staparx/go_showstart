@@ -72,6 +72,7 @@ go_showstart是一个基于golang的秀动抢票工具，可以帮助用户快�
 - 解释：
   - EncryptPathMap：特殊请求，需要加密的请求路径。
   - NeedCpMap：根据请求返参的buy_type，判断是否需要填写观演人信息的票务类型。
+  - NeedAdress: 根据请求返参的TicketType，判断是否需要填写收货地址的票务类型。
   - SaleStatusMap：未使用，记录了已知的返参值对应的票务状态。
 
 
