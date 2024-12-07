@@ -285,14 +285,15 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 				continue
 			}
 
-			log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单成功！orderJobKey：%s", orderJobKey))
+			log.Logger.Info(fmt.Sprintf(logPrefix+"获取orderJobKey成功！orderJobKey：%s", orderJobKey))
 
 			//查询订单结果
-			_, err = c.GetOrderResult(ctx, orderJobKey)
+			GetOrderResp, err := c.GetOrderResult(ctx, orderJobKey)
 			if err != nil {
 				log.Logger.Error(logPrefix+"查询订单结果失败：", zap.Error(err))
 				continue
 			}
+			log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单结果成功！订单号：%s", GetOrderResp.Result.OrderSn))
 
 			channel <- order
 			return
