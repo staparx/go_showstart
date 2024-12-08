@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/staparx/go_showstart/client"
@@ -28,6 +30,11 @@ type OrderDetail struct {
 var channel = make(chan *OrderDetail)
 
 var ErrorChannel = make(chan error)
+
+var orderJobKeyAcquired bool = false
+
+// 控制orderJobKeyAcquired的并发访问锁
+var orderJobKeyAcquiredLock = sync.Mutex{}
 
 func ConfirmOrder(ctx context.Context, order *OrderDetail, cfg *config.Config) error {
 	c := client.NewShowStartClient(ctx, cfg.Showstart)
@@ -257,27 +264,21 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 			} else {
 				firstLoop = false
 			}
+
+			//获取orderJobKey锁
+			orderJobKeyAcquiredLock.Lock()
+			if orderJobKeyAcquired { //已经有线程获取到orderJobKey
+				orderJobKeyAcquiredLock.Unlock()
+				continue
+			}
+			orderJobKeyAcquiredLock.Unlock() //释放orderJobKey锁
+
 			//下单
 			orderResp, err := c.Order(ctx, orderReq)
 			if err != nil {
 				log.Logger.Error(logPrefix+"下单失败：", zap.Error(err))
 				continue
 			}
-
-			// log.Logger.Info(fmt.Sprintf(logPrefix+"下单成功！核心订单Key：%s", orderResp.Result.CoreOrderKey))
-
-			// coreOrder, err := c.CoreOrder(ctx, orderResp.Result.CoreOrderKey)
-			// if err != nil {
-			// 	log.Logger.Error(logPrefix+"查询核心订单失败：", zap.Error(err))
-			// 	continue
-			// }
-
-			// var orderJobKey string
-			// if coreOrderMap, ok := coreOrder.Result.(map[string]interface{}); ok {
-			// 	if _, okk := coreOrderMap["orderJobKey"].(string); okk {
-			// 		orderJobKey = coreOrderMap["orderJobKey"].(string)
-			// 	}
-			// }
 
 			orderJobKey := orderResp.Result.OrderJobKey
 			if orderJobKey == "" {
@@ -287,16 +288,53 @@ func GoOrder(ctx context.Context, index int, c client.ShowStartIface, orderReq *
 
 			log.Logger.Info(fmt.Sprintf(logPrefix+"获取orderJobKey成功！orderJobKey：%s", orderJobKey))
 
-			//查询订单结果
-			GetOrderResp, err := c.GetOrderResult(ctx, orderJobKey)
-			if err != nil {
-				log.Logger.Error(logPrefix+"查询订单结果失败：", zap.Error(err))
-				continue
-			}
-			log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单结果成功！订单号：%s", GetOrderResp.Result.OrderSn))
+			//获取orderJobKey锁
+			orderJobKeyAcquiredLock.Lock()
+			orderJobKeyAcquired = true // 有线程获取到orderJobKey
+			orderJobKeyAcquiredLock.Unlock()
 
-			channel <- order
-			return
+			OrderResult, orderResultCancel := context.WithCancel(ctx)
+			defer orderResultCancel()
+
+			// 每隔200ms发送查询订单结果
+			for {
+				select {
+				case <-OrderResult.Done():
+					//停止循环查询订单结果
+					return
+				default:
+					//查询订单结果
+					go func() {
+						GetOrderResp, err := c.GetOrderResult(ctx, orderJobKey)
+
+						// 如果OrderResult.Done()则不再继续查询订单结果
+						if OrderResult.Err() != nil {
+							return
+						}
+
+						if err != nil {
+							log.Logger.Error(logPrefix+"查询订单结果失败：", zap.Error(err))
+							// 如果err中包含“小手指点得太快啦，休息一下”，则不停止循环查询订单结果
+							if strings.Contains(err.Error(), "小手指点得太快啦，休息一下") {
+								return
+							}
+							//释放orderJobKeyAcquired
+							orderJobKeyAcquiredLock.Lock()
+							orderJobKeyAcquired = false
+							orderJobKeyAcquiredLock.Unlock()
+							//停止循环查询订单结果
+							orderResultCancel()
+							return
+						}
+						log.Logger.Info(fmt.Sprintf(logPrefix+"查询订单结果成功！订单号：%s", GetOrderResp.Result.OrderSn))
+						//停止循环查询订单结果
+						orderResultCancel()
+						channel <- order
+					}()
+					// 间隔200ms查询订单结果
+					time.Sleep(200 * time.Millisecond)
+				}
+			}
 		}
 
 	}
