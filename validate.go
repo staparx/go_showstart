@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -91,8 +90,103 @@ func (s *ValidateService) ValidateSystem(ctx context.Context) ([]*buyTicket, err
 		}
 	}
 	if len(buyTicketList) == 0 {
-		log.Logger.Error("❌ 匹配票档失败！在场次中未找寻到对应票价的信息")
-		return nil, errors.New("匹配票档失败！在场次中未找寻到对应票价的信息")
+		log.Logger.Error("❌ 配置匹配票档失败！在场次中未找寻到对应票价的信息")
+		log.Logger.Info("🎯进入手动匹配模式，请根据以下信息进行匹配:")
+		// return nil, errors.New("匹配票档失败！在场次中未找寻到对应票价的信息")
+
+		if len(ticketList.Result) == 1 { // 单场次
+			log.Logger.Info("🎯仅有一个场次，默认匹配，场次名为:" + ticketList.Result[0].SessionName)
+			if len(ticketList.Result[0].TicketPriceList) == 1 { // 单场次单票价
+				log.Logger.Info("🎯仅有一个票价，默认匹配，票价为:" + ticketList.Result[0].TicketPriceList[0].Price)
+				err := config.SaveCfg(ticketList.Result[0].SessionName, ticketList.Result[0].TicketPriceList[0].Price) // 保存配置到config.yaml
+				if err != nil {
+					log.Logger.Error("❌ 保存手动匹配配置信息失败", zap.Error(err))
+				} else {
+					log.Logger.Info("🎯保存手动匹配配置信息成功")
+				}
+				buyTicketList = append(buyTicketList, &buyTicket{
+					ActivityName:                detail.Result.ActivityName,
+					SessionName:                 ticketList.Result[0].SessionName,
+					SessionID:                   ticketList.Result[0].SessionID,
+					IsConfirmedStartTime:        ticketList.Result[0].IsConfirmedStartTime,
+					CommonPerformerDocumentType: ticketList.Result[0].CommonPerformerDocumentType,
+					IsSupportTransform:          ticketList.Result[0].IsSupportTransform,
+					Ticket:                      ticketList.Result[0].TicketPriceList[0].TicketList[0],
+				})
+			} else { // 单场次多票价
+				log.Logger.Info("🎯有多个票价，请手动匹配")
+				for index, ticketPrice := range ticketList.Result[0].TicketPriceList {
+					log.Logger.Info(fmt.Sprintf("🎯票价%d：%s", index+1, ticketPrice.Price))
+				}
+				log.Logger.Info("🎯请输入票价序号:")
+				var ticketIndex int
+				fmt.Scanln(&ticketIndex)
+				err := config.SaveCfg(ticketList.Result[0].SessionName, ticketList.Result[0].TicketPriceList[ticketIndex-1].Price) // 保存配置到config.yaml
+				if err != nil {
+					log.Logger.Error("❌ 保存手动匹配配置信息失败", zap.Error(err))
+				} else {
+					log.Logger.Info("🎯保存手动匹配配置信息成功")
+				}
+				buyTicketList = append(buyTicketList, &buyTicket{
+					ActivityName:                detail.Result.ActivityName,
+					SessionName:                 ticketList.Result[0].SessionName,
+					SessionID:                   ticketList.Result[0].SessionID,
+					IsConfirmedStartTime:        ticketList.Result[0].IsConfirmedStartTime,
+					CommonPerformerDocumentType: ticketList.Result[0].CommonPerformerDocumentType,
+					IsSupportTransform:          ticketList.Result[0].IsSupportTransform,
+					Ticket:                      ticketList.Result[0].TicketPriceList[ticketIndex-1].TicketList[0],
+				})
+			}
+		} else { // 多场次
+			log.Logger.Info("🎯有多个场次，请手动匹配")
+			for index, session := range ticketList.Result {
+				log.Logger.Info(fmt.Sprintf("🎯场次%d：%s", index+1, session.SessionName))
+			}
+			log.Logger.Info("🎯请输入场次序号:")
+			var sessionIndex int
+			fmt.Scanln(&sessionIndex)
+			if len(ticketList.Result[sessionIndex-1].TicketPriceList) == 1 { // 多场次单票价
+				log.Logger.Info("🎯仅有一个票价，默认匹配，票价为:" + ticketList.Result[sessionIndex-1].TicketPriceList[0].Price)
+				err := config.SaveCfg(ticketList.Result[sessionIndex-1].SessionName, ticketList.Result[sessionIndex-1].TicketPriceList[0].Price) // 保存配置到config.yaml
+				if err != nil {
+					log.Logger.Error("❌ 保存手动匹配配置信息失败", zap.Error(err))
+				} else {
+					log.Logger.Info("🎯保存手动匹配配置信息成功")
+				}
+				buyTicketList = append(buyTicketList, &buyTicket{
+					ActivityName:                detail.Result.ActivityName,
+					SessionName:                 ticketList.Result[sessionIndex-1].SessionName,
+					SessionID:                   ticketList.Result[sessionIndex-1].SessionID,
+					IsConfirmedStartTime:        ticketList.Result[sessionIndex-1].IsConfirmedStartTime,
+					CommonPerformerDocumentType: ticketList.Result[sessionIndex-1].CommonPerformerDocumentType,
+					IsSupportTransform:          ticketList.Result[sessionIndex-1].IsSupportTransform,
+					Ticket:                      ticketList.Result[sessionIndex-1].TicketPriceList[0].TicketList[0],
+				})
+			} else { // 多场次多票价
+				log.Logger.Info("🎯有多个票价，请手动匹配")
+				for index, ticketPrice := range ticketList.Result[sessionIndex-1].TicketPriceList {
+					log.Logger.Info(fmt.Sprintf("🎯票价%d：%s", index+1, ticketPrice.Price))
+				}
+				log.Logger.Info("🎯请输入票价序号:")
+				var ticketIndex int
+				fmt.Scanln(&ticketIndex)
+				err := config.SaveCfg(ticketList.Result[sessionIndex-1].SessionName, ticketList.Result[sessionIndex-1].TicketPriceList[ticketIndex-1].Price) // 保存配置到config.yaml
+				if err != nil {
+					log.Logger.Error("❌ 保存手动匹配配置信息失败", zap.Error(err))
+				} else {
+					log.Logger.Info("🎯保存手动匹配配置信息成功")
+				}
+				buyTicketList = append(buyTicketList, &buyTicket{
+					ActivityName:                detail.Result.ActivityName,
+					SessionName:                 ticketList.Result[sessionIndex-1].SessionName,
+					SessionID:                   ticketList.Result[sessionIndex-1].SessionID,
+					IsConfirmedStartTime:        ticketList.Result[sessionIndex-1].IsConfirmedStartTime,
+					CommonPerformerDocumentType: ticketList.Result[sessionIndex-1].CommonPerformerDocumentType,
+					IsSupportTransform:          ticketList.Result[sessionIndex-1].IsSupportTransform,
+					Ticket:                      ticketList.Result[sessionIndex-1].TicketPriceList[ticketIndex-1].TicketList[0],
+				})
+			}
+		}
 	}
 
 	log.Logger.Info("🎫获取票务信息成功，系统将按照以下优先级进行抢购:")

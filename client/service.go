@@ -7,6 +7,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/staparx/go_showstart/log"
 )
 
 type ShowStartIface interface {
@@ -18,6 +19,8 @@ type ShowStartIface interface {
 	ActivityTicketList(ctx context.Context, activityId int) (*ActivityTicketListResp, error)
 	// Confirm 确认购买
 	Confirm(ctx context.Context, activityId int, ticketId, ticketNum string) (*ConfirmResp, error)
+	// AdressList 地址列表
+	AdressList(ctx context.Context) (*AdressListResp, error)
 	// CpList 观演人列表
 	CpList(ctx context.Context, ticketId string) (*CpListResp, error)
 	OrderList(ctx context.Context, req *OrderListReq) (*OrderListResp, error)
@@ -38,6 +41,9 @@ func (c *ShowStartClient) GetToken(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// 添加 GetToken 的返回值到Debug日志中
+	log.Logger.Debug("GetToken:" + string(result))
 
 	var resp *GetTokenResp
 	err = jsoniter.Unmarshal(result, &resp)
@@ -128,6 +134,9 @@ func (c *ShowStartClient) Confirm(ctx context.Context, activityId int, ticketId,
 		return nil, err
 	}
 
+	// 将 Confirm 的返回值打印到Debug日志中
+	log.Logger.Debug("Confirm:" + string(result))
+
 	var resp *ConfirmResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
@@ -139,6 +148,32 @@ func (c *ShowStartClient) Confirm(ctx context.Context, activityId int, ticketId,
 			return nil, err
 		}
 		return c.Confirm(ctx, activityId, ticketId, ticketNum)
+	}
+
+	return resp, nil
+}
+
+// AdressList 地址列表
+func (c *ShowStartClient) AdressList(ctx context.Context) (*AdressListResp, error) {
+	path := "/wap/address/list"
+	data := fmt.Sprintf(`{"st_flpv":"%s","sign":"%s","trackPath":""}`, c.StFlpv, c.Sign)
+
+	result, err := c.Post(ctx, path, data)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *AdressListResp
+	err = jsoniter.Unmarshal(result, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.State == "token-expire-at" || resp.Msg == "登录过期了，请重新登录！" {
+		err = c.GetToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return c.AdressList(ctx)
 	}
 
 	return resp, nil
@@ -215,6 +250,9 @@ func (c *ShowStartClient) Order(ctx context.Context, req *OrderReq) (*OrderResp,
 		return nil, err
 	}
 
+	// 将 Order 的返回值打印到Debug日志中
+	log.Logger.Debug("Order:" + string(result))
+
 	var resp *OrderResp
 	err = jsoniter.Unmarshal(result, &resp)
 	if err != nil {
@@ -236,6 +274,7 @@ func (c *ShowStartClient) Order(ctx context.Context, req *OrderReq) (*OrderResp,
 	return nil, errors.New(resp.Msg)
 }
 
+// 未使用
 func (c *ShowStartClient) CoreOrder(ctx context.Context, coreOrderKey string) (*OrderCoreResp, error) {
 	path := "/nj/order/coreOrder"
 
@@ -280,6 +319,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 		return nil, err
 	}
 
+	// 将 GetOrderResult 的返回值打印到Debug日志中
+	log.Logger.Debug("GetOrderResult: " + string(result))
+
 	// 修复返回值为 pending 时的解析问题
 	type CommonResp struct {
 		Success bool        `json:"success"`
@@ -293,12 +335,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 	}
 
 	if commonResp.Success && commonResp.Result == "pending" {
-		// 如果 success 为 true 且 result 为 "pending"，则不解析 GetOrderResultResp 中的 result 键
-		return &GetOrderResultResp{
-			ShowStartCommonResp: &ShowStartCommonResp{
-				Success: commonResp.Success,
-			},
-		}, nil
+		// 如果 success 为 true 且 result 为 "pending"，则等待 200ms 后再次查询
+		time.Sleep(200 * time.Millisecond)
+		return c.GetOrderResult(ctx, orderJobKey)
 	}
 
 	// 否则，继续解析为 GetOrderResultResp
@@ -316,5 +355,9 @@ func (c *ShowStartClient) GetOrderResult(ctx context.Context, orderJobKey string
 		return c.GetOrderResult(ctx, orderJobKey)
 	}
 
-	return &resp, nil
+	if resp.Success || resp.State == "1" {
+		return &resp, nil
+	}
+
+	return nil, errors.New(resp.Msg)
 }

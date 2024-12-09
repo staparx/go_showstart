@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/staparx/go_showstart/config"
-	"github.com/staparx/go_showstart/log"
-	"github.com/staparx/go_showstart/vars"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/staparx/go_showstart/config"
+	"github.com/staparx/go_showstart/log"
+	"github.com/staparx/go_showstart/vars"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -25,6 +26,9 @@ func main() {
 	log.InitLogger()
 
 	var err error
+
+	vars.ShowPortal()
+
 	//初始化时间地区
 	vars.TimeLocal, err = time.LoadLocation(vars.TimeLoadLocation)
 	if err != nil {
@@ -87,6 +91,21 @@ func main() {
 				log.Logger.Error("发送邮件失败：", zap.Error(err))
 			} else {
 				log.Logger.Info("下单成功，邮件已发送")
+			}
+		}
+	case Error := <-ErrorChannel:
+		cancel()
+		log.Logger.Error("❌ 抢票失败！！！程序结束")
+		// 下单失败，发送邮件提醒
+		if cfg.SmtpEmail.Enable {
+			subject := "抢票初始化失败，请查看错误，并及时处理重启程序！！！"
+
+			body := fmt.Sprintf("错误信息：%s", Error.Error())
+
+			if err := sendEmail(subject, body, cfg); err != nil {
+				log.Logger.Error("发送邮件失败：", zap.Error(err))
+			} else {
+				log.Logger.Info("下单失败，邮件已发送")
 			}
 		}
 	case <-stopChan:
